@@ -1,13 +1,17 @@
-var createError = require('http-errors');
-var express = require('express');
-var path = require('path');
-var cookieParser = require('cookie-parser');
-var logger = require('morgan');
+const createError = require('http-errors');
+const express = require('express');
+const path = require('path');
+const cookieParser = require('cookie-parser');
+const logger = require('morgan');
+const mongoose = require('mongoose');
+const Schema = mongoose.Schema;
 
-var indexRouter = require('./routes/index');
-var usersRouter = require('./routes/users');
+const indexRouter = require('./routes/index');
+const roomsRouter = require('./routes/rooms');
 
-var app = express();
+const initListeners = require('./listeners');
+
+const app = express();
 const http = require('http').createServer(app);
 const io = require('socket.io')(http);
 
@@ -17,15 +21,53 @@ app.use(express.urlencoded({ extended: false }));
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// app.use('/', indexRouter);
-// app.use('/users', usersRouter);
-app.get('/', (req, res) => {
-  res.send('<h1>Hello world</h1>');
+/**
+ * CORS set up
+ */
+app.use((req, res, next) => {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header(
+        "Access-Control-Allow-Headers",
+        "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+    );
+    if (req.method === "OPTIONS") {
+        res.header("Access-Control-Allow-Methods", "PUT, POST, PATCH, DELETE, GET");
+        return res.status(200).json({});
+    }
+    next();
 });
+app.use('/', indexRouter);
+app.use('/rooms', roomsRouter);
 
-http.listen(3000, () => {
-  console.log('listening on *:3000');
-});
+/**
+ * DB connection
+ */
+mongoose.connect(
+    'mongodb+srv://coparty_valik:pLnhQZR!L-YJ95v@cluster0.mjvxw.mongodb.net/coparty_db?retryWrites=true&w=majority',
+    {
+      useUnifiedTopology: true,
+      useNewUrlParser: true,
+      useFindAndModify: false
+    }, (err) => {
+      if (err) {
+        return console.log('DB connection error', err)
+      }
+
+        mongoose.Promise = global.Promise;
+
+      /**
+       * Server init
+       */
+      http.listen(3000, () => {
+        console.log('listening on *:3000');
+      });
+
+    });
+
+/**
+ * Socket init
+ */
+initListeners(io);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
@@ -34,37 +76,8 @@ app.use(function(req, res, next) {
 
 // error handler
 app.use(function(err, req, res, next) {
-  // set locals, only providing error in development
   res.locals.message = err.message;
   res.locals.error = req.app.get('env') === 'development' ? err : {};
-
-  // render the error page
   res.status(err.status || 500);
-  // res.next('error');
   console.log(err);
 });
-
-/**
- * Setup socket.io
- */
-io.on('connection', (socket) => {
-  console.log('Client connected');
-
-  socket.on('mix', (soundParams) => {
-    socket.broadcast.emit('mix', soundParams);
-  })
-
-  socket.on('start', () => {
-    socket.broadcast.emit('start');
-  })
-
-  socket.on('stop', () => {
-    socket.broadcast.emit('stop');
-  })
-
-  socket.on('disconnect', () => {
-    console.log('disconnected');
-  })
-})
-
-// module.exports = app;
