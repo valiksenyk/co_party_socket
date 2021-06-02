@@ -6,6 +6,8 @@ const logger = require('morgan');
 const mongoose = require('mongoose');
 const Schema = mongoose.Schema;
 
+require('dotenv').config();
+
 const indexRouter = require('./routes/index');
 const roomsRouter = require('./routes/rooms');
 
@@ -43,7 +45,7 @@ app.use('/rooms', roomsRouter);
  * DB connection
  */
 mongoose.connect(
-    'mongodb+srv://coparty_valik:pLnhQZR!L-YJ95v@cluster0.mjvxw.mongodb.net/coparty_db?retryWrites=true&w=majority',
+    process.env.dbConnectionString,
     {
       useUnifiedTopology: true,
       useNewUrlParser: true,
